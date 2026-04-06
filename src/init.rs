@@ -862,7 +862,7 @@ fn execute_init(
     }
 
     // Generate devcontainer.json for Zed integration
-    if let Err(e) = crate::devcontainer::write(name) {
+    if let Err(e) = crate::devcontainer::write(name, None) {
         eprintln!("Warning: failed to generate devcontainer.json: {e}");
     }
 

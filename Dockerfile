@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    file \
     gnupg \
     gosu \
     git \
@@ -14,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     openssh-client \
     python3 \
+    less \
+    netcat-openbsd \
     python3-pip \
     vim \
     && rm -rf /var/lib/apt/lists/*
