@@ -309,7 +309,7 @@ pub fn cmd_init_agent(name: &str, agent_path: &str, flag_ssh_key: Option<&str>) 
     let repos: Vec<config::RepoConfig> = result.repos.into_iter()
         .filter_map(|r| {
             r.url.map(|url| config::RepoConfig {
-                url: resolve_ssh_alias(&url, &ssh_aliases),
+                url: resolve_ssh_alias(&https_to_ssh(&url), &ssh_aliases),
                 dir: r.dir,
                 branch: r.branch,
             })
@@ -453,6 +453,24 @@ fn parse_ssh_config_aliases(contents: &str) -> std::collections::HashMap<String,
     map
 }
 
+/// Convert an HTTPS git remote URL to SSH format.
+///
+/// Inside containers there is no way to prompt for HTTPS credentials, so we
+/// convert `https://host/org/repo.git` → `git@host:org/repo.git`.
+fn https_to_ssh(url: &str) -> String {
+    // Match https://host/path...
+    if let Some(rest) = url.strip_prefix("https://") {
+        if let Some(slash) = rest.find('/') {
+            let host = &rest[..slash];
+            let path = &rest[slash + 1..];
+            if !path.is_empty() {
+                return format!("git@{}:{}", host, path);
+            }
+        }
+    }
+    url.to_string()
+}
+
 /// Replace SSH host aliases in a git remote URL with the real hostname.
 fn resolve_ssh_alias(url: &str, aliases: &std::collections::HashMap<String, String>) -> String {
     if let Some(rest) = url.strip_prefix("git@") {
@@ -512,7 +530,7 @@ fn run_prescan(target: &std::path::Path) -> anyhow::Result<String> {
             .unwrap_or_else(|| "NONE".to_string());
 
         let remote = if raw_remote != "NONE" {
-            resolve_ssh_alias(&raw_remote, &ssh_aliases)
+            resolve_ssh_alias(&https_to_ssh(&raw_remote), &ssh_aliases)
         } else {
             raw_remote.clone()
         };
@@ -1144,6 +1162,34 @@ Host nohost
 
         let url = "https://github.com/user/repo.git";
         assert_eq!(resolve_ssh_alias(url, &aliases), url);
+    }
+
+    #[test]
+    fn https_to_ssh_basic() {
+        assert_eq!(
+            https_to_ssh("https://github.com/user/repo.git"),
+            "git@github.com:user/repo.git"
+        );
+    }
+
+    #[test]
+    fn https_to_ssh_custom_host() {
+        assert_eq!(
+            https_to_ssh("https://git.kycsystems.com/kycsystems/celery.node.git"),
+            "git@git.kycsystems.com:kycsystems/celery.node.git"
+        );
+    }
+
+    #[test]
+    fn https_to_ssh_already_ssh() {
+        let url = "git@github.com:user/repo.git";
+        assert_eq!(https_to_ssh(url), url);
+    }
+
+    #[test]
+    fn https_to_ssh_no_path() {
+        let url = "https://github.com";
+        assert_eq!(https_to_ssh(url), url);
     }
 
     #[test]
