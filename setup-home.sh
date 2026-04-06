@@ -25,7 +25,18 @@ if [ -f /tmp/host-ssh-key ]; then
     chmod 700 /project/home/.ssh
     chmod 600 /project/home/.ssh/id_key
     chown -R claude:claude /project/home/.ssh
-    printf 'Host *\n    IdentityFile /project/home/.ssh/id_key\n    IdentitiesOnly yes\n    StrictHostKeyChecking accept-new\n' > /project/home/.ssh/config
+
+    # Start with host SSH config to preserve Host-specific settings (Port, HostName, etc.)
+    if [ -f /tmp/host-ssh-config ]; then
+        # Copy host config, rewriting IdentityFile paths to use the container key
+        sed 's|^[[:space:]]*IdentityFile.*|    IdentityFile /project/home/.ssh/id_key|i' \
+            /tmp/host-ssh-config > /project/home/.ssh/config
+        # Append wildcard defaults for any hosts not explicitly configured
+        printf '\nHost *\n    IdentityFile /project/home/.ssh/id_key\n    IdentitiesOnly yes\n    StrictHostKeyChecking accept-new\n' >> /project/home/.ssh/config
+    else
+        printf 'Host *\n    IdentityFile /project/home/.ssh/id_key\n    IdentitiesOnly yes\n    StrictHostKeyChecking accept-new\n' > /project/home/.ssh/config
+    fi
+
     chmod 600 /project/home/.ssh/config
     chown claude:claude /project/home/.ssh/config
 fi

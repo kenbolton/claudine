@@ -988,6 +988,12 @@ fn setup_home(
         args.extend(["-v".to_string(), format!("{}:/tmp/host-ssh-key:ro", key_path)]);
     }
 
+    // Mount host SSH config so port/hostname/alias settings are preserved in the container
+    let ssh_config_path = home.join(".ssh/config");
+    if ssh_config_path.exists() {
+        args.extend(["-v".to_string(), format!("{}:/tmp/host-ssh-config:ro", ssh_config_path.display())]);
+    }
+
     args.extend([
         "--entrypoint".to_string(), "bash".to_string(),
         image.to_string(),
